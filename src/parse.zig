@@ -3,6 +3,8 @@ usingnamespace @import("address.zig");
 const std = @import("std");
 
 pub const Token = union(enum) {
+    ParenBegin,
+    ParenEnd,
     DerefBegin,
     DerefEnd,
     String: SliceToken,
@@ -61,6 +63,8 @@ pub const StreamingLexer = struct {
                     l.count = 0;
                 } else {
                     switch (c) {
+                        '(' => token.* = .ParenBegin,
+                        ')' => token.* = .ParenEnd,
                         '[' => token.* = .DerefBegin,
                         ']' => token.* = .DerefEnd,
                         '"' => {
@@ -69,6 +73,8 @@ pub const StreamingLexer = struct {
                         },
                         '+' => token.* = .{ .Operator = .Add },
                         '-' => token.* = .{ .Operator = .Sub },
+                        '*' => token.* = .{ .Operator = .Mul },
+                        '/' => token.* = .{ .Operator = .Div },
                         0x09, 0x0A, 0x0D, 0x20 => {
                             // whitespace
                         },
@@ -142,10 +148,12 @@ pub const ParseError = TokenStream.Error || error{
     UnexpectedEndOfAddress,
     EmptyDeref,
     MissingOperand,
+    UnexpectedClosingParen,
     UnexpectedClosingBracket,
 };
 
 const StackOperator = union(enum) {
+    Paren,
     Deref,
     BinaryOp: Operator,
 };
@@ -163,6 +171,30 @@ pub fn comptimeParse(comptime slice: []const u8) ParseError!Address {
     comptime {
         while (try tokens.next()) |token| {
             switch (token) {
+                .ParenBegin => {
+                    operators = &[_]StackOperator{.Paren} ++ operators;
+                },
+                .ParenEnd => {
+                    var open_paren_pos: ?usize = null;
+                    for (operators) |op, i| {
+                        switch (op) {
+                            .Paren => {
+                                open_paren_pos = i;
+                                break;
+                            },
+                            .Deref => return ParseError.UnexpectedClosingParen,
+                            else => {
+                                output = output ++ &[_]Ouput{.{ .StackOperator = op }};
+                            },
+                        }
+                    }
+
+                    if (open_paren_pos) |pos| {
+                        operators = operators[pos + 1 ..];
+                    } else {
+                        return ParseError.UnexpectedClosingParen;
+                    }
+                },
                 .DerefBegin => {
                     operators = &[_]StackOperator{.Deref} ++ operators;
                 },
@@ -170,6 +202,7 @@ pub fn comptimeParse(comptime slice: []const u8) ParseError!Address {
                     var open_deref_pos: ?usize = null;
                     for (operators) |op, i| {
                         switch (op) {
+                            .Paren => return ParseError.UnexpectedClosingBracket,
                             .Deref => {
                                 open_deref_pos = i;
                                 break;
@@ -184,7 +217,7 @@ pub fn comptimeParse(comptime slice: []const u8) ParseError!Address {
                         output = output ++ &[_]Ouput{.{ .StackOperator = .Deref }};
                         operators = operators[pos + 1 ..];
                     } else {
-                        return Error.UnexpectedClosingBracket;
+                        return ParseError.UnexpectedClosingBracket;
                     }
                 },
                 .String => |slice_tok| {
@@ -207,7 +240,7 @@ pub fn comptimeParse(comptime slice: []const u8) ParseError!Address {
                     while (true) {
                         if (operators.len < 1) break;
                         switch (operators[0]) {
-                            .Deref => break,
+                            .Paren, .Deref => break,
                             .BinaryOp => |op2| {
                                 if (op2.precedence() >= op1.precedence()) {
                                     output = output ++ &[_]Ouput{.{ .StackOperator = operators[0] }};
@@ -225,7 +258,7 @@ pub fn comptimeParse(comptime slice: []const u8) ParseError!Address {
 
         for (operators) |op| {
             switch (op) {
-                .Deref => return Error.UnexpectedEndOfAddress,
+                .Paren, .Deref => return ParseError.UnexpectedEndOfAddress,
                 .BinaryOp => {
                     output = output ++ &[_]Ouput{.{ .StackOperator = op }};
                 },
@@ -240,7 +273,7 @@ fn buildAddress(comptime output: []const Ouput) ParseError!Address {
     comptime var output_stack: []const Address = &.{};
 
     comptime {
-        if (output.len == 0) return Error.UnexpectedEndOfAddress;
+        if (output.len == 0) return ParseError.UnexpectedEndOfAddress;
 
         for (output) |out| {
             switch (out) {
@@ -250,17 +283,18 @@ fn buildAddress(comptime output: []const Ouput) ParseError!Address {
                 .StackOperator => |stack_op| {
                     switch (stack_op) {
                         .Deref => {
-                            if (output_stack.len < 1) return Error.EmptyDeref;
+                            if (output_stack.len < 1) return ParseError.EmptyDeref;
                             output_stack = &[_]Address{.{ .Deref = &output_stack[0] }} ++ output_stack[1..];
                         },
                         .BinaryOp => |op| {
-                            if (output_stack.len < 2) return Error.MissingOperand;
+                            if (output_stack.len < 2) return ParseError.MissingOperand;
                             output_stack = &[_]Address{.{ .BinaryOp = .{
                                 .op = op,
                                 .left = &output_stack[1],
                                 .right = &output_stack[0],
                             } }} ++ output_stack[2..];
                         },
+                        else => unreachable,
                     }
                 },
             }
@@ -269,7 +303,7 @@ fn buildAddress(comptime output: []const Ouput) ParseError!Address {
         if (output_stack.len == 1) {
             return output_stack[0];
         } else if (output_stack.len > 1) {
-            return Error.UnexpectedEndOfAddress;
+            return ParseError.UnexpectedEndOfAddress;
         } else {
             unreachable;
         }

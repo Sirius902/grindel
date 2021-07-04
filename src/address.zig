@@ -22,11 +22,13 @@ pub const Literal = union(enum) {
 pub const Operator = enum {
     Add,
     Sub,
+    Mul,
+    Div,
 
     pub fn precedence(self: Operator) comptime_int {
         return switch (self) {
-            .Add => 0,
-            .Sub => 0,
+            .Add, .Sub => 0,
+            .Mul, .Div => 1,
         };
     }
 };

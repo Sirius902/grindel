@@ -23,6 +23,8 @@ fn printAddressInternal(a: *const Address, space: usize) void {
             const op_str = switch (binop.op) {
                 .Add => "+",
                 .Sub => "-",
+                .Mul => "*",
+                .Div => "/",
             };
             std.debug.print("{s}\n", .{op_str});
 
