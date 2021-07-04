@@ -56,7 +56,7 @@ pub const StreamingLexer = struct {
     fn transition(l: *StreamingLexer, c: u8, token: *?Token) Error!bool {
         switch (l.state) {
             .TopLevel => {
-                if (std.ascii.isAlNum(c)) {
+                if (std.ascii.isXDigit(c)) {
                     l.state = .Hex;
                     l.count = 0;
                 } else {
@@ -83,7 +83,7 @@ pub const StreamingLexer = struct {
                 }
             },
             .Hex => {
-                if (!std.ascii.isAlNum(c)) {
+                if (!std.ascii.isXDigit(c)) {
                     l.state = .TopLevel;
                     token.* = .{ .Hex = .{ .count = l.count } };
                     return true;
