@@ -163,6 +163,13 @@ const Ouput = union(enum) {
     StackOperator: StackOperator,
 };
 
+/// Parses a symbolic `Address` from a string.
+///
+/// Supports dereferencing with `[]`, `+-*/` operators, and parenthesis `()`.
+/// Modules are within `""` and all numbers are hexadecimal.
+///
+/// Example: `["foo.dll"+C]+4` when resolved will dereference the address of
+/// the `foo.dll` module plus 0xC in a process then add 0x4.
 pub fn comptimeParse(comptime slice: []const u8) ParseError!Address {
     comptime var tokens = TokenStream.init(slice);
     comptime var operators: []const StackOperator = &.{};

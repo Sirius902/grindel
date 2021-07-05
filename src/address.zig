@@ -14,6 +14,7 @@ pub const Address = union(enum) {
 
     pub const comptimeParse = parse.comptimeParse;
 
+    /// Evaluates and returns the value of the address in the memory space of a process.
     pub fn resolve(self: *const Address, process: *const Process) Process.Error!usize {
         switch (self.*) {
             .BinaryOp => |binop| {

@@ -2,6 +2,7 @@ usingnamespace @import("address.zig");
 
 const std = @import("std");
 
+/// Prints the internal structure of an `Address` to stderr.
 pub fn printAddress(a: *const Address) void {
     printAddressInternal(a, 0);
 }
