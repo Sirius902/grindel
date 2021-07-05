@@ -17,7 +17,8 @@ pub const Process = struct {
         PartialCopy,
     };
 
-    /// Open process handle from executable name.
+    /// Open process handle from executable name. Caller should `close` the
+    /// process handle when finished with it.
     ///
     /// Example: `notepad.exe`.
     pub fn open(exe_file: []const u8) Error!Process {
@@ -26,7 +27,8 @@ pub const Process = struct {
         return Process{ .handle = handle, .is_wow64 = try isWow64(handle) };
     }
 
-    /// Open process handle from window name.
+    /// Open process handle from window name. Caller should `close` the
+    /// process handle when finished with it.
     pub fn openWindow(window_name: [:0]const u8) Error!Process {
         const hwnd = c.FindWindowA(null, window_name.ptr);
         if (hwnd == null) {
