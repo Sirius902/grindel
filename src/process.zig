@@ -12,6 +12,7 @@ pub const Process = struct {
         AccessDenied,
         InvalidHandle,
 
+        InvalidAccess,
         PartialCopy,
     };
 
@@ -133,6 +134,7 @@ pub const Process = struct {
         return switch (c.GetLastError()) {
             c.ERROR_ACCESS_DENIED => Error.AccessDenied,
             c.ERROR_INVALID_HANDLE => Error.InvalidHandle,
+            c.ERROR_NOACCESS => Error.InvalidAccess,
             c.ERROR_PARTIAL_COPY => Error.PartialCopy,
             else => |e| {
                 std.debug.panic("Unexpected win32 error: 0x{X}", .{e});
