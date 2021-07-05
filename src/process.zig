@@ -73,20 +73,26 @@ pub const Process = struct {
 
     /// Read memory into `buffer` from process starting at address `address`.
     pub fn readMemory(self: Process, address: usize, buffer: []u8) Error!void {
+        const old_prot = try virtualProtectEx(self.handle, address, buffer.len, c.PAGE_EXECUTE_READWRITE);
         const address_ptr = @intToPtr([*c]u8, address);
 
         if (c.ReadProcessMemory(self.handle, address_ptr, buffer.ptr, buffer.len, null) == 0) {
             return yieldError();
         }
+
+        _ = try virtualProtectEx(self.handle, address, buffer.len, old_prot);
     }
 
     /// Write memory in `buffer` to process starting at address `address`.
     pub fn writeMemory(self: Process, address: usize, buffer: []const u8) Error!void {
+        const old_prot = try virtualProtectEx(self.handle, address, buffer.len, c.PAGE_EXECUTE_READWRITE);
         const address_ptr = @intToPtr([*c]u8, address);
 
         if (c.WriteProcessMemory(self.handle, address_ptr, buffer.ptr, buffer.len, null) == 0) {
             return yieldError();
         }
+
+        _ = try virtualProtectEx(self.handle, address, buffer.len, old_prot);
     }
 
     fn isWow64(process: c.HANDLE) Error!bool {
@@ -166,6 +172,18 @@ pub const Process = struct {
     fn openProcess(proc_id: c.DWORD) Error!c.HANDLE {
         const handle = c.OpenProcess(c.PROCESS_ALL_ACCESS, c.FALSE, proc_id);
         return if (handle != c.NULL) handle else yieldError();
+    }
+
+    /// Changes the protection of a memory region starting at `address` of size
+    /// `size` and returns the old protection.
+    fn virtualProtectEx(process: c.HANDLE, address: usize, size: usize, protect: c.DWORD) Error!c.DWORD {
+        const address_ptr = @intToPtr([*c]u8, address);
+        var old_protect: c.DWORD = undefined;
+        if (c.VirtualProtectEx(process, address_ptr, size, protect, &old_protect) != 0) {
+            return old_protect;
+        } else {
+            return yieldError();
+        }
     }
 
     /// Yields the last win32 error.
