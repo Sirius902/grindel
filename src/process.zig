@@ -17,19 +17,19 @@ pub const Process = struct {
         PartialCopy,
     };
 
-    /// Open process handle from executable name. Caller should `close` the
-    /// process handle when finished with it.
+    /// Attach to process from executable name. Caller should `detach` from the
+    /// process when finished with it.
     ///
     /// Example: `notepad.exe`.
-    pub fn open(exe_file: []const u8) Error!Process {
+    pub fn attach(exe_file: []const u8) Error!Process {
         const proc_id = (try getProcId(exe_file)) orelse return Error.ProcessNotFound;
         const handle = try openProcess(proc_id);
         return Process{ .handle = handle, .is_wow64 = try isWow64(handle) };
     }
 
-    /// Open process handle from window name. Caller should `close` the
-    /// process handle when finished with it.
-    pub fn openWindow(window_name: [:0]const u8) Error!Process {
+    /// Attach to process from window name. Caller should `detach` from the
+    /// process when finished with it.
+    pub fn attachWindow(window_name: [:0]const u8) Error!Process {
         const hwnd = c.FindWindowA(null, window_name.ptr);
         if (hwnd == null) {
             return Error.ProcessNotFound;
@@ -40,8 +40,8 @@ pub const Process = struct {
         return Process{ .handle = handle, .is_wow64 = try isWow64(handle) };
     }
 
-    /// Close process handle.
-    pub fn close(self: Process) void {
+    /// Detach from process.
+    pub fn detach(self: Process) void {
         _ = c.CloseHandle(self.handle);
     }
 

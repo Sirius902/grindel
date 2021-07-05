@@ -23,8 +23,8 @@ const health_address_sym = try Address.comptimeParse(
     \\ [["game.exe"+1FC]+48]-4
 );
 
-const process = try Process.open("game.exe");
-defer process.close();
+const process = try Process.attach("game.exe");
+defer process.detach();
 
 const health_address = health_address_sym.resolve(&process);
 
