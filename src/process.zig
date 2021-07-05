@@ -95,10 +95,22 @@ pub const Process = struct {
         var mod_entry: c.MODULEENTRY32 = undefined;
         mod_entry.dwSize = @sizeOf(c.MODULEENTRY32);
 
-        const snap = c.CreateToolhelp32Snapshot(c.TH32CS_SNAPMODULE | c.TH32CS_SNAPMODULE32, c.GetProcessId(process));
-        if (snap == c.INVALID_HANDLE_VALUE) {
-            return yieldError();
-        }
+        const snap = blk: {
+            const proc_id = c.GetProcessId(process);
+            // To quote the Microsoft docs: "If the function fails with
+            // ERROR_BAD_LENGTH, retry the function until it succeeds."
+            while (true) {
+                const s = c.CreateToolhelp32Snapshot(c.TH32CS_SNAPMODULE | c.TH32CS_SNAPMODULE32, proc_id);
+                if (s == c.INVALID_HANDLE_VALUE) {
+                    if (c.GetLastError() == c.ERROR_BAD_LENGTH) {
+                        continue;
+                    } else {
+                        return yieldError();
+                    }
+                }
+                break :blk s;
+            }
+        };
         defer _ = c.CloseHandle(snap);
 
         if (c.Module32First(snap, &mod_entry) != 0) {
