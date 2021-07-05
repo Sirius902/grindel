@@ -34,7 +34,7 @@ pub const Address = union(enum) {
                 };
             },
             .Deref => |d| {
-                return try process.read(usize, try d.resolve(process));
+                return try process.readPointer(try d.resolve(process));
             },
         }
     }

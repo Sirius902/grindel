@@ -4,6 +4,7 @@ const c = @import("c.zig");
 /// A handle to a Windows process.
 pub const Process = struct {
     handle: c.HANDLE,
+    is_wow64: bool,
 
     pub const Error = error{
         ProcessNotFound,
@@ -22,7 +23,19 @@ pub const Process = struct {
     pub fn open(exe_file: []const u8) Error!Process {
         const proc_id = (try getProcId(exe_file)) orelse return Error.ProcessNotFound;
         const handle = try openProcess(proc_id);
-        return Process{ .handle = handle };
+        return Process{ .handle = handle, .is_wow64 = try isWow64(handle) };
+    }
+
+    /// Open process handle from window name.
+    pub fn openWindow(window_name: [:0]const u8) Error!Process {
+        const hwnd = c.FindWindowA(null, window_name.ptr);
+        if (hwnd == null) {
+            return Error.ProcessNotFound;
+        }
+        var proc_id: c.DWORD = undefined;
+        _ = c.GetWindowThreadProcessId(hwnd, &proc_id);
+        const handle = try openProcess(proc_id);
+        return Process{ .handle = handle, .is_wow64 = try isWow64(handle) };
     }
 
     /// Close process handle.
@@ -40,6 +53,15 @@ pub const Process = struct {
         var buffer: [@sizeOf(T)]u8 = undefined;
         try self.readMemory(address, &buffer);
         return std.mem.bytesAsValue(T, &buffer).*;
+    }
+
+    /// Reads a pointer from the memory of the process at address `address`.
+    pub fn readPointer(self: Process, address: usize) Error!usize {
+        if (self.is_wow64) {
+            return try self.read(u32, address);
+        } else {
+            return try self.read(usize, address);
+        }
     }
 
     /// Write the bytes of a value to the memory of the process starting at address `address`.
@@ -61,6 +83,15 @@ pub const Process = struct {
         const address_ptr = @intToPtr([*c]u8, address);
 
         if (c.WriteProcessMemory(self.handle, address_ptr, buffer.ptr, buffer.len, null) == 0) {
+            return yieldError();
+        }
+    }
+
+    fn isWow64(process: c.HANDLE) Error!bool {
+        var result: c.BOOL = undefined;
+        if (c.IsWow64Process(process, &result) != 0) {
+            return result != 0;
+        } else {
             return yieldError();
         }
     }
