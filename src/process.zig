@@ -58,6 +58,8 @@ pub const Process = struct {
     }
 
     /// Reads a pointer from the memory of the process at address `address`.
+    ///
+    /// To read elements into a slice from memory, use `readIntoSlice` instead.
     pub fn readPointer(self: Process, address: usize) Error!usize {
         if (self.is_wow64) {
             return try self.read(u32, address);
@@ -66,9 +68,65 @@ pub const Process = struct {
         }
     }
 
+    /// Fill a slice with elements from the memory of the process starting at address `address`.
+    pub fn readIntoSlice(self: Process, slice: anytype, address: usize) Error!void {
+        switch (@typeInfo(@TypeOf(slice))) {
+            .Pointer => |ptr| {
+                switch (ptr.size) {
+                    .One => {
+                        switch (@typeInfo(ptr.child)) {
+                            .Array => {
+                                try self.readMemory(address, slice);
+                                return;
+                            },
+                            else => {},
+                        }
+                    },
+                    .Slice => {
+                        try self.readMemory(address, std.mem.sliceAsBytes(slice));
+                        return;
+                    },
+                    else => {},
+                }
+            },
+            else => {},
+        }
+
+        @compileError("Not a slice");
+    }
+
     /// Write the bytes of a value to the memory of the process starting at address `address`.
+    ///
+    /// To write the elements of a slice into memory, use `writeSlice` instead.
     pub fn write(self: Process, value: anytype, address: usize) Error!void {
         try self.writeMemory(address, std.mem.asBytes(&value));
+    }
+
+    /// Write the elements of a slice to the memory of the process starting at address `address`.
+    pub fn writeSlice(self: Process, slice: anytype, address: usize) Error!void {
+        switch (@typeInfo(@TypeOf(slice))) {
+            .Pointer => |ptr| {
+                switch (ptr.size) {
+                    .One => {
+                        switch (@typeInfo(ptr.child)) {
+                            .Array => {
+                                try self.writeMemory(address, slice);
+                                return;
+                            },
+                            else => {},
+                        }
+                    },
+                    .Slice => {
+                        try self.writeMemory(address, std.mem.sliceAsBytes(slice));
+                        return;
+                    },
+                    else => {},
+                }
+            },
+            else => {},
+        }
+
+        @compileError("Not a slice");
     }
 
     /// Read memory into `buffer` from process starting at address `address`.
