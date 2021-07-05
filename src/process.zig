@@ -76,7 +76,7 @@ pub const Process = struct {
                     .One => {
                         switch (@typeInfo(ptr.child)) {
                             .Array => {
-                                try self.readMemory(address, slice);
+                                try self.readMemory(address, std.mem.asBytes(slice));
                                 return;
                             },
                             else => {},
@@ -110,7 +110,7 @@ pub const Process = struct {
                     .One => {
                         switch (@typeInfo(ptr.child)) {
                             .Array => {
-                                try self.writeMemory(address, slice);
+                                try self.writeMemory(address, std.mem.asBytes(slice));
                                 return;
                             },
                             else => {},
