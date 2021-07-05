@@ -32,11 +32,7 @@ pub const Process = struct {
 
     /// Returns the base address of the module with name `name` in the process.
     pub fn moduleBase(self: Process, name: []const u8) Error!usize {
-        if (try getModuleBase(self.handle, name)) |mod| {
-            return @ptrToInt(mod);
-        } else {
-            return Error.ModuleNotFound;
-        }
+        return (try getModuleBase(self.handle, name)) orelse Error.ModuleNotFound;
     }
 
     /// Read a `T` from the memory of the process starting at address `address`.
@@ -95,7 +91,7 @@ pub const Process = struct {
         return null;
     }
 
-    fn getModuleBase(process: c.HANDLE, mod_name: []const u8) Error!?[*c]u8 {
+    fn getModuleBase(process: c.HANDLE, mod_name: []const u8) Error!?usize {
         var mod_entry: c.MODULEENTRY32 = undefined;
         mod_entry.dwSize = @sizeOf(c.MODULEENTRY32);
 
@@ -109,7 +105,7 @@ pub const Process = struct {
             while (true) {
                 const current_name = std.mem.span(@ptrCast([*:0]u8, &mod_entry.szModule));
                 if (std.mem.eql(u8, current_name, mod_name)) {
-                    return mod_entry.modBaseAddr;
+                    return @ptrToInt(mod_entry.modBaseAddr);
                 }
 
                 if (c.Module32Next(snap, &mod_entry) == 0) {
