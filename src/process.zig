@@ -29,13 +29,25 @@ pub const Process = struct {
         _ = c.CloseHandle(self.handle);
     }
 
-    /// Returns the base address of the module in the process with name `name`.
+    /// Returns the base address of the module with name `name` in the process.
     pub fn moduleBase(self: Process, name: []const u8) Error!usize {
         if (try getModuleBase(self.handle, name)) |mod| {
             return @ptrToInt(mod);
         } else {
             return Error.ModuleNotFound;
         }
+    }
+
+    /// Read a `T` from the memory of the process starting at address `address`.
+    pub fn read(self: Process, comptime T: type, address: usize) Error!T {
+        var buffer: [@sizeOf(T)]u8 = undefined;
+        try self.readMemory(address, &buffer);
+        return std.mem.bytesAsValue(T, &buffer).*;
+    }
+
+    /// Write the bytes of a value to the memory of the process starting at address `address`.
+    pub fn write(self: Process, value: anytype, address: usize) Error!void {
+        try self.writeMemory(address, std.mem.asBytes(&value));
     }
 
     /// Read memory into `buffer` from process starting at address `address`.
