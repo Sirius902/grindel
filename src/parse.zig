@@ -23,7 +23,6 @@ pub const Token = union(enum) {
 pub const StreamingLexer = struct {
     state: State,
     count: usize,
-    complete: bool,
 
     pub const Error = error{InvalidTopLevel};
 
@@ -42,7 +41,6 @@ pub const StreamingLexer = struct {
     pub fn reset(l: *StreamingLexer) void {
         l.state = .TopLevel;
         l.count = 0;
-        l.complete = false;
     }
 
     pub fn feed(l: *StreamingLexer, c: u8, token1: *?Token, token2: *?Token) Error!void {
