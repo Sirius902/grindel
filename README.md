@@ -1,6 +1,6 @@
 # Grindel
 
-A Windows process hacking library in Zig.
+A Windows process hacking library in Zig with symbolic address resolution.
 
 ## Features
 
