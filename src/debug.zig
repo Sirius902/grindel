@@ -1,13 +1,12 @@
-usingnamespace @import("address.zig");
-
 const std = @import("std");
+const address = @import("address.zig");
 
 /// Prints the internal structure of an `Address` to stderr.
-pub fn printAddress(a: *const Address) void {
+pub fn printAddress(a: *const address.Address) void {
     printAddressInternal(a, 0);
 }
 
-fn printAddressInternal(a: *const Address, space: usize) void {
+fn printAddressInternal(a: *const address.Address, space: usize) void {
     const count = 10;
     const next_space = space + count;
 

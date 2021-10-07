@@ -1,6 +1,5 @@
-usingnamespace @import("address.zig");
-
 const std = @import("std");
+const address = @import("address.zig");
 
 pub const Token = union(enum) {
     ParenBegin,
@@ -9,7 +8,7 @@ pub const Token = union(enum) {
     DerefEnd,
     String: SliceToken,
     Hex: SliceToken,
-    Operator: Operator,
+    Operator: address.Operator,
 
     pub const SliceToken = struct {
         count: usize,
@@ -153,11 +152,11 @@ pub const ParseError = TokenStream.Error || error{
 const StackOperator = union(enum) {
     Paren,
     Deref,
-    BinaryOp: Operator,
+    BinaryOp: address.Operator,
 };
 
 const Ouput = union(enum) {
-    Literal: Literal,
+    Literal: address.Literal,
     StackOperator: StackOperator,
 };
 
@@ -168,7 +167,7 @@ const Ouput = union(enum) {
 ///
 /// Example: `["foo.dll"+C]+4` when resolved will dereference the address of
 /// the `foo.dll` module plus 0xC in a process then add 0x4.
-pub fn comptimeParse(comptime slice: []const u8) ParseError!Address {
+pub fn comptimeParse(comptime slice: []const u8) ParseError!address.Address {
     comptime var tokens = TokenStream.init(slice);
     comptime var operators: []const StackOperator = &.{};
     comptime var output: []const Ouput = &.{};
@@ -274,8 +273,8 @@ pub fn comptimeParse(comptime slice: []const u8) ParseError!Address {
     return try buildAddress(output);
 }
 
-fn buildAddress(comptime output: []const Ouput) ParseError!Address {
-    comptime var output_stack: []const Address = &.{};
+fn buildAddress(comptime output: []const Ouput) ParseError!address.Address {
+    comptime var output_stack: []const address.Address = &.{};
 
     comptime {
         if (output.len == 0) return ParseError.UnexpectedEndOfAddress;
@@ -283,17 +282,17 @@ fn buildAddress(comptime output: []const Ouput) ParseError!Address {
         for (output) |out| {
             switch (out) {
                 .Literal => |l| {
-                    output_stack = &[_]Address{.{ .Literal = l }} ++ output_stack;
+                    output_stack = &[_]address.Address{.{ .Literal = l }} ++ output_stack;
                 },
                 .StackOperator => |stack_op| {
                     switch (stack_op) {
                         .Deref => {
                             if (output_stack.len < 1) return ParseError.EmptyDeref;
-                            output_stack = &[_]Address{.{ .Deref = &output_stack[0] }} ++ output_stack[1..];
+                            output_stack = &[_]address.Address{.{ .Deref = &output_stack[0] }} ++ output_stack[1..];
                         },
                         .BinaryOp => |op| {
                             if (output_stack.len < 2) return ParseError.MissingOperand;
-                            output_stack = &[_]Address{.{ .BinaryOp = .{
+                            output_stack = &[_]address.Address{.{ .BinaryOp = .{
                                 .op = op,
                                 .left = &output_stack[1],
                                 .right = &output_stack[0],
