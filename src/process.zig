@@ -246,7 +246,7 @@ pub const Process = struct {
     }
 
     /// Yields the last win32 error.
-    /// 
+    ///
     /// Should only be called when it is known an error has occurred.
     fn yieldError() Error {
         return switch (c.GetLastError()) {
